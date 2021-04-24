@@ -48,23 +48,22 @@ def insert_data_rows(conn, **kwargs):
 
 conn = create_connection('food_blog.db')
 
-
 sql_create_table_meals = """ CREATE TABLE IF NOT EXISTS meals (
-                            meal_id integer PRIMARY KEY,
-                            meal_name text NOT NULL UNIQUE
+                            meal_id integer PRIMARY KEY UNIQUE,
+                            meal_name TEXT  NOT NULL UNIQUE
                             );"""
 sql_create_table_ingredients = """ CREATE TABLE IF NOT EXISTS ingredients (
                             ingredient_id integer PRIMARY KEY,
-                            ingredient_name text NOT NULL UNIQUE
+                            ingredient_name TEXT NOT NULL UNIQUE
                             );"""
 sql_create_table_measures = """ CREATE TABLE IF NOT EXISTS measures (
                             measure_id integer PRIMARY KEY,
-                            measure_name text UNIQUE
+                            measure_name TEXT UNIQUE
                             );"""
 sql_create_table_recipes = """ CREATE TABLE IF NOT EXISTS recipes (
                             recipe_id integer PRIMARY KEY,
-                            recipe_name text NOT NULL,
-                            recipe_description text
+                            recipe_name TEXT NOT NULL,
+                            recipe_description TEXT
                             );"""
 sql_create_table_serve = """ CREATE TABLE IF NOT EXISTS serve (
                             serve_id integer PRIMARY KEY,
@@ -73,6 +72,16 @@ sql_create_table_serve = """ CREATE TABLE IF NOT EXISTS serve (
                             FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id),
                             FOREIGN KEY(meal_id) REFERENCES meals(meal_id)
                             );"""
+sql_create_table_quantity = """ CREATE TABLE IF NOT EXISTS quantity (
+                            quantity_id integer PRIMARY KEY,
+                            measure_id integer NOT NULL,
+                            ingredient_id integer NOT NULL,
+                            quantity integer NOT NULL,
+                            recipe_id integer NOT NULL,
+                            FOREIGN KEY(measure_id) REFERENCES measures(measure_id),
+                            FOREIGN KEY(ingredient_id) REFERENCES ingredients(ingredient_id),
+                            FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id)
+                            );"""
 
 # with conn:
 create_table(conn, sql_create_table_meals)
@@ -80,13 +89,13 @@ create_table(conn, sql_create_table_ingredients)
 create_table(conn, sql_create_table_measures)
 create_table(conn, sql_create_table_recipes)
 create_table(conn, sql_create_table_serve)
+create_table(conn, sql_create_table_quantity)
 cur = conn.cursor()
 cur.execute('PRAGMA foreign_keys = ON')
 
 data = {"meals": ("breakfast", "brunch", "lunch", "supper"),
         "ingredients": ("milk", "cacao", "strawberry", "blueberry", "blackberry", "sugar"),
         "measures": ("ml", "g", "l", "cup", "tbsp", "tsp", "dsp", "")}
-
 
 insert_data_rows(conn, **data)
 
@@ -112,15 +121,21 @@ while True:
               f"{all_meals[1][0]}) {all_meals[1][1]} "
               f"{all_meals[2][0]}) {all_meals[2][1]} "
               f"{all_meals[3][0]}) {all_meals[3][1]}")
-        dish = input('When the dish can be served:')
+        dish = input('Enter proposed meals separated by a space:')
         user_choice = dish.split(' ')
 
         for element in user_choice:
+            recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
             sql1 = f''' INSERT INTO serve(meal_id, recipe_id)
-                          VALUES('{element}', '1') '''
+                          VALUES('{element}') '''
             cur = conn.cursor()
             cur.execute(sql1)
             conn.commit()
+
+        #while True:
+            #measures = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp"]
+            #quantity_ingredient = input()
+
         continue
     else:
         break
