@@ -18,7 +18,7 @@ def insert_data_rows(conn, **kwargs):
         if key == 'meals':
             for element in value:
                 sql = f''' INSERT INTO meals(meal_name)
-                          VALUES ('{element}'); '''
+                          VALUES ('{element}') ; '''
                 cur = conn.cursor()
                 cur.execute(sql)
                 conn.commit()
@@ -38,6 +38,15 @@ def insert_data_rows(conn, **kwargs):
                 cur = conn.cursor()
                 cur.execute(sql)
                 conn.commit()
+
+
+def check_measure(name):
+    cur = conn.cursor()
+
+    measures = cur.execute(f"""SELECT * FROM measures""").fetchall()
+
+    pass
+
 
 
 # parser = argparse.ArgumentParser()
@@ -103,10 +112,10 @@ print('Pass the empty recipe name to exit')
 
 while True:
 
-    name = input('Recipe name:')
+    name = 'Hot milk' # input('Recipe name:')    'Hot milk'
 
     if len(name) != 0:
-        description = input('Recipe description:')
+        description = 'Boil milk'#input('Recipe description:')
         sql = f''' INSERT INTO recipes(recipe_name, recipe_description)
                           VALUES('{name}', '{description}') '''
         cur = conn.cursor()
@@ -121,22 +130,38 @@ while True:
               f"{all_meals[1][0]}) {all_meals[1][1]} "
               f"{all_meals[2][0]}) {all_meals[2][1]} "
               f"{all_meals[3][0]}) {all_meals[3][1]}")
-        dish = input('Enter proposed meals separated by a space:')
+        dish = '1 2 3'#input('Enter proposed meals separated by a space:')  '1 2 3'
         user_choice = dish.split(' ')
+
+        #recipe = cur.execute(f"""SELECT * FROM recipes""")
+        #print(recipe.fetchall())
+        #print(recipe.fetchone())
+        #print('chuj')
+
+        #recipe1 = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
+        #print(recipe1.fetchall())
+        #recipe11 = recipe1.fetchall()
+        #print(recipe11[0][0], )
 
         for element in user_choice:
             recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
+            recipe_id_1 = recipe_id.fetchall()
             sql1 = f''' INSERT INTO serve(meal_id, recipe_id)
-                          VALUES('{element}') '''
+                          VALUES('{element}','{recipe_id_1[0][0]}') '''
             cur = conn.cursor()
             cur.execute(sql1)
             conn.commit()
 
-        #while True:
-            #measures = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp"]
-            #quantity_ingredient = input()
 
-        continue
+
+        while True:
+            measures = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp", '']
+            quantity_ingredient = input('Input quantity of ingredient <press enter to stop>: ')
+            quantity_ingredient_list = quantity_ingredient.split(' ')
+
+            sql2 = f"""INSERT INTO quantity(measure_id, ingredient_id, quantity, recipe_id)
+                          VALUES('{}', '{}', '{quantity_ingredient_list[0]}', '{recipe_id_1[0][0]}') """
+        #continue
     else:
         break
 
