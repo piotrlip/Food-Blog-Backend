@@ -1,5 +1,8 @@
 import sqlite3
 import argparse
+import re
+
+
 
 
 def create_connection(db_file):
@@ -40,19 +43,84 @@ def insert_data_rows(conn, **kwargs):
                 conn.commit()
 
 
-def check_measure(name):
+def insert_quantity(quantity, measure, name, recipe_id):
     cur = conn.cursor()
 
-    measures = cur.execute(f"""SELECT * FROM measures""").fetchall()
-
-    pass
-
+    measures = cur.execute(f"""SELECT measure_id FROM measures WHERE measure_name = '{measure}'""").fetchall()
+    ingredient = cur.execute(f"""SELECT ingredient_id FROM ingredients WHERE ingredient_name = {name} """).fetchall()
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--file", type=argparse.FileType("r"))
+    sql1 = f"""INSERT INTO quantity(measure_id , ingredient_id , quantity , recipe_id )
+                         VALUES('{measures[0][1]}', '{ingredient[0][1]}', '{quantity}', '{recipe_id}') """
 
-# database = parser.parse_args()
+    cur.execute(sql1)
+    conn.commit()
+
+
+def quantity_ingredient_3(quantity, measure, ingredient_name, recipe_name):
+
+    measures_list = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp", ""]
+
+    regexp = '(ml|g|l|cup|tbsp|tsp|dsp)'
+    result = re.match(regexp, measure)
+
+    if result is None:
+        return 'The measure is not conclusive!'
+
+    ingredient = ingredient_name
+    if ingredient == 'blue':
+        ingredient = 'blueberry'
+    elif ingredient == 'black':
+        ingredient = 'blackberry'
+
+    sql_ingredient_name = cur.execute(f"""SELECT ingredient_name FROM ingredients """).fetchall()
+    ingredient_list = tuple([sql_ingredient_name[i][0] for i in range(len(sql_ingredient_name))])
+    regexp1 = str(ingredient_list).replace(',', '|').replace(' ', '').replace('\'', '')
+    result = re.match(regexp1, ingredient)
+
+    if result is None:
+        return 'The ingredient is not conclusive!'
+
+    # we have to get measure_id , ingredient_id, recipe_id
+    # measure_id
+    sql_measure_id = cur.execute(f"""SELECT measure_id FROM measures WHERE measure_name = '{measure}'""").fetchall()
+
+    # ingredient_id
+    sql_ingredient_id = cur.execute(
+        f"""SELECT ingredient_id FROM ingredients WHERE ingredient_name = '{ingredient}' """).fetchall()
+
+    # recipe_id
+    sql_recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{recipe_name}' """).fetchall()
+
+
+    sql1 = f"""INSERT INTO quantity(measure_id , ingredient_id , quantity , recipe_id )
+                     VALUES('{sql_measure_id[0][0]}', '{sql_ingredient_id[0][0]}', '{quantity}', '{sql_recipe_id[0][0]}') """
+
+    cur.execute(sql1)
+    conn.commit()
+
+    return
+
+
+def quantity_ingredient_2(quantity, ingredient_name, recipe_name):
+    sql_ingredient_name = cur.execute(f"""SELECT ingredient_name FROM ingredients """).fetchall()
+    ingredient_list = tuple([sql_ingredient_name[i][0] for i in range(len(sql_ingredient_name))])
+
+    regexp = str(ingredient_list).replace(',', '|').replace(' ', '').replace('\'', '')
+    result = re.match(regexp, ingredient_name)
+
+    if result is None:
+        return 'The ingredient is not conclusive!'
+    sql_ingredient_id = cur.execute(
+        f"""SELECT ingredient_id FROM ingredients WHERE ingredient_name = '{ingredient_name}' """).fetchall()
+    sql_recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{recipe_name}' """).fetchall()
+    sql_measure_id = cur.execute(f"""SELECT measure_id FROM measures WHERE measure_name = ''""").fetchall()
+
+    sql1 = f"""INSERT INTO quantity(measure_id , ingredient_id , quantity , recipe_id )
+                     VALUES('{sql_measure_id[0][0]}', '{sql_ingredient_id[0][0]}', '{quantity}', '{sql_recipe_id[0][0]}') """
+
+    cur.execute(sql1)
+    conn.commit()
 
 
 conn = create_connection('food_blog.db')
@@ -92,7 +160,7 @@ sql_create_table_quantity = """ CREATE TABLE IF NOT EXISTS quantity (
                             FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id)
                             );"""
 
-# with conn:
+
 create_table(conn, sql_create_table_meals)
 create_table(conn, sql_create_table_ingredients)
 create_table(conn, sql_create_table_measures)
@@ -112,10 +180,10 @@ print('Pass the empty recipe name to exit')
 
 while True:
 
-    name = 'Hot milk' # input('Recipe name:')    'Hot milk'
+    name = input('Recipe name:')  # input('Recipe name:')    'Hot milk'
 
     if len(name) != 0:
-        description = 'Boil milk'#input('Recipe description:')
+        description = input('Recipe description:')  # input('Recipe description:')   'Boil milk'
         sql = f''' INSERT INTO recipes(recipe_name, recipe_description)
                           VALUES('{name}', '{description}') '''
         cur = conn.cursor()
@@ -130,18 +198,9 @@ while True:
               f"{all_meals[1][0]}) {all_meals[1][1]} "
               f"{all_meals[2][0]}) {all_meals[2][1]} "
               f"{all_meals[3][0]}) {all_meals[3][1]}")
-        dish = '1 2 3'#input('Enter proposed meals separated by a space:')  '1 2 3'
+        dish = input(
+            'Enter proposed meals separated by a space:')  # input('Enter proposed meals separated by a space:')  '1 2 3'
         user_choice = dish.split(' ')
-
-        #recipe = cur.execute(f"""SELECT * FROM recipes""")
-        #print(recipe.fetchall())
-        #print(recipe.fetchone())
-        #print('chuj')
-
-        #recipe1 = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
-        #print(recipe1.fetchall())
-        #recipe11 = recipe1.fetchall()
-        #print(recipe11[0][0], )
 
         for element in user_choice:
             recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
@@ -152,17 +211,36 @@ while True:
             cur.execute(sql1)
             conn.commit()
 
-
-
         while True:
-            measures = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp", '']
-            quantity_ingredient = input('Input quantity of ingredient <press enter to stop>: ')
+
+            quantity_ingredient = input(
+                'Input quantity of ingredient <press enter to stop>: ')  # input('Input quantity of ingredient <press enter to stop>: ')    '250 ml milk'
             quantity_ingredient_list = quantity_ingredient.split(' ')
 
-            sql2 = f"""INSERT INTO quantity(measure_id, ingredient_id, quantity, recipe_id)
-                          VALUES('{}', '{}', '{quantity_ingredient_list[0]}', '{recipe_id_1[0][0]}') """
-        #continue
-    else:
+            if len(quantity_ingredient_list) == 3:
+                q3 = quantity_ingredient_3(quantity_ingredient_list[0], quantity_ingredient_list[1],
+                                           quantity_ingredient_list[2], name)
+
+                if q3 is None:
+                    pass
+                else:
+                    print(q3)
+                continue
+
+            elif len(quantity_ingredient_list) == 2:
+                q2 = quantity_ingredient_2(quantity_ingredient_list[0], quantity_ingredient_list[1], name)
+                if q2 is None:
+                    pass
+                else:
+                    print(q2)
+                continue
+
+            elif len(quantity_ingredient_list) == 1:
+                break
+
+        continue
+
+    elif len(name) == 0:
         break
 
 conn.close()
