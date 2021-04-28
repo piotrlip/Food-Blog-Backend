@@ -4,7 +4,6 @@ import re
 import sys
 
 
-
 def create_connection(db_file):
     conn = sqlite3.connect(db_file)
     return conn
@@ -49,7 +48,6 @@ def insert_quantity(quantity, measure, name, recipe_id):
     measures = cur.execute(f"""SELECT measure_id FROM measures WHERE measure_name = '{measure}'""").fetchall()
     ingredient = cur.execute(f"""SELECT ingredient_id FROM ingredients WHERE ingredient_name = {name} """).fetchall()
 
-
     sql1 = f"""INSERT INTO quantity(measure_id , ingredient_id , quantity , recipe_id )
                          VALUES('{measures[0][1]}', '{ingredient[0][1]}', '{quantity}', '{recipe_id}') """
 
@@ -58,7 +56,6 @@ def insert_quantity(quantity, measure, name, recipe_id):
 
 
 def quantity_ingredient_3(quantity, measure, ingredient_name, recipe_name):
-
     measures_list = ["ml", "g", "l", "cup", "tbsp", "tsp", "dsp", ""]
 
     regexp = '(ml|g|l|cup|tbsp|tsp|dsp)'
@@ -92,7 +89,6 @@ def quantity_ingredient_3(quantity, measure, ingredient_name, recipe_name):
     # recipe_id
     sql_recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{recipe_name}' """).fetchall()
 
-
     sql1 = f"""INSERT INTO quantity(measure_id , ingredient_id , quantity , recipe_id )
                      VALUES('{sql_measure_id[0][0]}', '{sql_ingredient_id[0][0]}', '{quantity}', '{sql_recipe_id[0][0]}') """
 
@@ -122,64 +118,59 @@ def quantity_ingredient_2(quantity, ingredient_name, recipe_name):
     cur.execute(sql1)
     conn.commit()
 
+
 def print_meals_ing(ingredient, meals):
 
-    # print(type(ingredient))
-    # print(type(meals))
-    # #print(ingredient.join(','))
-    # print(','.join(ingredient).replace(',', '","'))
-    #print(tuple(ingredient))
-    #selected_ingredient1 = ','.join(ingredient).replace(',', ' ')
-    #selected_ingredient = selected_ingredient1.replace(' ', '\',\'')
-    #selected_meals = ','.join(meals)#.replace(',', r'\',\'')
-
-    sql_where_ingr = None
-    sql_where_meal = None
-
+    sql = None
     if len(ingredient) == 1:
-        sql_where_ingr = str(ingredient[0])
-
-    elif len(ingredient) == 2:
-        sql_where_ingr = f'\'{ingredient[0]}\' OR \'{ingredient[1]}\''
-
-
-    if len(meals) == 1:
-        sql_where_meal = meals[0]
-
-    elif len(meals) == 2:
-        sql_where_meal = f'\'{meals[0]}\' OR \'{meals[1]}\''
-
-    # str(meals).replace('[', '(').replace(']',')')
-    # str(ingredient).replace('[', '(').replace(']',')')
-
-    sql = f"""SELECT DISTINCT    A.recipe_name
+        first_query = f"""SELECT DISTINCT    A.recipe_name, E.meal_name		
               FROM recipes AS A
               JOIN quantity AS B
                   ON A.recipe_id = B.recipe_id
               JOIN ingredients AS C
-                 ON C.ingredient_id = B.ingredient_id
-             JOIN serve AS D
-                 ON A.recipe_id = D.recipe_id 
-             JOIN meals AS E
+                  ON C.ingredient_id = B.ingredient_id
+              JOIN serve AS D
+                  ON A.recipe_id = D.recipe_id
+              JOIN meals AS E
                   ON D.meal_id = E.meal_id
-               WHERE (E.meal_name IS {sql_where_meal}) AND (C.ingredient_name IS {sql_where_ingr})
-                    """
-# WHERE E.meal_name IN {str(meals).replace('[', '(').replace(']',')')} AND C.ingredient_name IN {str(ingredient).replace('[', '(').replace(']',')')}
-# WHERE (E.meal_name IS 'brunch' OR  E.meal_name IS 'supper')   AND C.ingredient_name  IS 'strawberry' OR 'sugar'
-#     SELECT DISTINCT    A.recipe_name
-#
-#
-# 	WHERE (E.meal_name  IS 'supper' OR 'brunch') AND (C.ingredient_name  IS 'strawberry' OR 'sugar')
+			  WHERE  C.ingredient_name  = '{str(ingredient[0])}' AND E.meal_name  IN {str(meals).replace('[', '(').replace(']', ')')}"""
 
+        sql = f"""{first_query}"""
 
+    elif len(ingredient) == 2:
+        first_query = f"""SELECT DISTINCT    A.recipe_name		
+              FROM recipes AS A
+              JOIN quantity AS B
+                  ON A.recipe_id = B.recipe_id
+              JOIN ingredients AS C
+                  ON C.ingredient_id = B.ingredient_id
+              JOIN serve AS D
+                  ON A.recipe_id = D.recipe_id
+              JOIN meals AS E
+                  ON D.meal_id = E.meal_id
+			  WHERE  C.ingredient_name  = '{str(ingredient[0])}' AND E.meal_name  IN {str(meals).replace('[', '(').replace(']', ')')}"""
+        second_query = f"""
+              INTERSECT
+    
+              SELECT DISTINCT    A.recipe_name	
+              FROM recipes AS A
+              JOIN quantity AS B
+                  ON A.recipe_id = B.recipe_id
+              JOIN ingredients AS C
+                  ON C.ingredient_id = B.ingredient_id
+              JOIN serve AS D
+                  ON A.recipe_id = D.recipe_id
+              JOIN meals AS E
+                  ON D.meal_id = E.meal_id
+			WHERE  C.ingredient_name  = '{str(ingredient[1])}' AND E.meal_name  IN {str(meals).replace('[', '(').replace(']', ')')}
+            """
 
+        sql = f"""{first_query} 
+                    {second_query}"""
 
     answer = cur.execute(sql).fetchall()
 
     print_answer = ','.join([answer[i][0] for i in range(len(answer))]).replace('\'', '').replace(',', ', ')
-
-    # print(print_answer)
-    # print()
 
     if len(answer) > 0:
         print(f'Recipes selected for you: {print_answer}')
@@ -188,13 +179,6 @@ def print_meals_ing(ingredient, meals):
         print('There are no such recipes in the database.')
         conn.close()
 
-
-
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--infile", type=argparse.FileType("r"))
-# parser.add_argument("--words", type=argparse.FileType("r"))
-# text_file = parser.parse_args()
 
 conn = create_connection('food_blog.db')
 
@@ -233,7 +217,6 @@ sql_create_table_quantity = """ CREATE TABLE IF NOT EXISTS quantity (
                             FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id)
                             );"""
 
-
 create_table(conn, sql_create_table_meals)
 create_table(conn, sql_create_table_ingredients)
 create_table(conn, sql_create_table_measures)
@@ -252,14 +235,11 @@ existence = cur.execute(f'SELECT * FROM meals').fetchall()
 if len(existence) == 0:
     insert_data_rows(conn, **data)
 
-sys.argv = [1,2,"--ingredients=strawberry,sugar", "--meals=brunch,supper"]
+# sys.argv = [1,2,"--ingredients=cacao", "--meals=brunch,supper"]
 
 if len(sys.argv) > 2:
     ingredient = sys.argv[2].replace('--ingredients=', '').split(',')
     meals = sys.argv[3].replace('--meals=', '').split(',')
-
-    # print(ingredient, 'ing')
-    # print(meals, 'meal')
     print_meals_ing(ingredient, meals)
     conn.close()
 
@@ -333,4 +313,3 @@ else:
             break
 
     conn.close()
-
