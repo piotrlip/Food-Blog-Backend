@@ -1,7 +1,7 @@
 import sqlite3
 import argparse
 import re
-
+import sys
 
 
 
@@ -122,6 +122,79 @@ def quantity_ingredient_2(quantity, ingredient_name, recipe_name):
     cur.execute(sql1)
     conn.commit()
 
+def print_meals_ing(ingredient, meals):
+
+    # print(type(ingredient))
+    # print(type(meals))
+    # #print(ingredient.join(','))
+    # print(','.join(ingredient).replace(',', '","'))
+    #print(tuple(ingredient))
+    #selected_ingredient1 = ','.join(ingredient).replace(',', ' ')
+    #selected_ingredient = selected_ingredient1.replace(' ', '\',\'')
+    #selected_meals = ','.join(meals)#.replace(',', r'\',\'')
+
+    sql_where_ingr = None
+    sql_where_meal = None
+
+    if len(ingredient) == 1:
+        sql_where_ingr = str(ingredient[0])
+
+    elif len(ingredient) == 2:
+        sql_where_ingr = f'\'{ingredient[0]}\' OR \'{ingredient[1]}\''
+
+
+    if len(meals) == 1:
+        sql_where_meal = meals[0]
+
+    elif len(meals) == 2:
+        sql_where_meal = f'\'{meals[0]}\' OR \'{meals[1]}\''
+
+    # str(meals).replace('[', '(').replace(']',')')
+    # str(ingredient).replace('[', '(').replace(']',')')
+
+    sql = f"""SELECT DISTINCT    A.recipe_name
+              FROM recipes AS A
+              JOIN quantity AS B
+                  ON A.recipe_id = B.recipe_id
+              JOIN ingredients AS C
+                 ON C.ingredient_id = B.ingredient_id
+             JOIN serve AS D
+                 ON A.recipe_id = D.recipe_id 
+             JOIN meals AS E
+                  ON D.meal_id = E.meal_id
+               WHERE (E.meal_name IS {sql_where_meal}) AND (C.ingredient_name IS {sql_where_ingr})
+                    """
+# WHERE E.meal_name IN {str(meals).replace('[', '(').replace(']',')')} AND C.ingredient_name IN {str(ingredient).replace('[', '(').replace(']',')')}
+# WHERE (E.meal_name IS 'brunch' OR  E.meal_name IS 'supper')   AND C.ingredient_name  IS 'strawberry' OR 'sugar'
+#     SELECT DISTINCT    A.recipe_name
+#
+#
+# 	WHERE (E.meal_name  IS 'supper' OR 'brunch') AND (C.ingredient_name  IS 'strawberry' OR 'sugar')
+
+
+
+
+    answer = cur.execute(sql).fetchall()
+
+    print_answer = ','.join([answer[i][0] for i in range(len(answer))]).replace('\'', '').replace(',', ', ')
+
+    # print(print_answer)
+    # print()
+
+    if len(answer) > 0:
+        print(f'Recipes selected for you: {print_answer}')
+        conn.close()
+    else:
+        print('There are no such recipes in the database.')
+        conn.close()
+
+
+
+
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--infile", type=argparse.FileType("r"))
+# parser.add_argument("--words", type=argparse.FileType("r"))
+# text_file = parser.parse_args()
 
 conn = create_connection('food_blog.db')
 
@@ -174,73 +247,90 @@ data = {"meals": ("breakfast", "brunch", "lunch", "supper"),
         "ingredients": ("milk", "cacao", "strawberry", "blueberry", "blackberry", "sugar"),
         "measures": ("ml", "g", "l", "cup", "tbsp", "tsp", "dsp", "")}
 
-insert_data_rows(conn, **data)
+existence = cur.execute(f'SELECT * FROM meals').fetchall()
 
-print('Pass the empty recipe name to exit')
+if len(existence) == 0:
+    insert_data_rows(conn, **data)
 
-while True:
+sys.argv = [1,2,"--ingredients=strawberry,sugar", "--meals=brunch,supper"]
 
-    name = input('Recipe name:')  # input('Recipe name:')    'Hot milk'
+if len(sys.argv) > 2:
+    ingredient = sys.argv[2].replace('--ingredients=', '').split(',')
+    meals = sys.argv[3].replace('--meals=', '').split(',')
 
-    if len(name) != 0:
-        description = input('Recipe description:')  # input('Recipe description:')   'Boil milk'
-        sql = f''' INSERT INTO recipes(recipe_name, recipe_description)
-                          VALUES('{name}', '{description}') '''
-        cur = conn.cursor()
+    # print(ingredient, 'ing')
+    # print(meals, 'meal')
+    print_meals_ing(ingredient, meals)
+    conn.close()
 
-        cur.execute(sql)
-        conn.commit()
+else:
 
-        meals = cur.execute(f'SELECT * FROM meals')
-        all_meals = meals.fetchall()
+    print('Pass the empty recipe name to exit')
 
-        print(f"{all_meals[0][0]}) {all_meals[0][1]} "
-              f"{all_meals[1][0]}) {all_meals[1][1]} "
-              f"{all_meals[2][0]}) {all_meals[2][1]} "
-              f"{all_meals[3][0]}) {all_meals[3][1]}")
-        dish = input(
-            'Enter proposed meals separated by a space:')  # input('Enter proposed meals separated by a space:')  '1 2 3'
-        user_choice = dish.split(' ')
+    while True:
 
-        for element in user_choice:
-            recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
-            recipe_id_1 = recipe_id.fetchall()
-            sql1 = f''' INSERT INTO serve(meal_id, recipe_id)
-                          VALUES('{element}','{recipe_id_1[0][0]}') '''
+        name = input('Recipe name:')  # input('Recipe name:')    'Hot milk'
+
+        if len(name) != 0:
+            description = input('Recipe description:')  # input('Recipe description:')   'Boil milk'
+            sql = f''' INSERT INTO recipes(recipe_name, recipe_description)
+                              VALUES('{name}', '{description}') '''
             cur = conn.cursor()
-            cur.execute(sql1)
+
+            cur.execute(sql)
             conn.commit()
 
-        while True:
+            meals = cur.execute(f'SELECT * FROM meals')
+            all_meals = meals.fetchall()
 
-            quantity_ingredient = input(
-                'Input quantity of ingredient <press enter to stop>: ')  # input('Input quantity of ingredient <press enter to stop>: ')    '250 ml milk'
-            quantity_ingredient_list = quantity_ingredient.split(' ')
+            print(f"{all_meals[0][0]}) {all_meals[0][1]} "
+                  f"{all_meals[1][0]}) {all_meals[1][1]} "
+                  f"{all_meals[2][0]}) {all_meals[2][1]} "
+                  f"{all_meals[3][0]}) {all_meals[3][1]}")
+            dish = input(
+                'Enter proposed meals separated by a space:')  # input('Enter proposed meals separated by a space:')  '1 2 3'
+            user_choice = dish.split(' ')
 
-            if len(quantity_ingredient_list) == 3:
-                q3 = quantity_ingredient_3(quantity_ingredient_list[0], quantity_ingredient_list[1],
-                                           quantity_ingredient_list[2], name)
+            for element in user_choice:
+                recipe_id = cur.execute(f"""SELECT recipe_id FROM recipes WHERE recipe_name = '{name}'""")
+                recipe_id_1 = recipe_id.fetchall()
+                sql1 = f''' INSERT INTO serve(meal_id, recipe_id)
+                              VALUES('{element}','{recipe_id_1[0][0]}') '''
+                cur = conn.cursor()
+                cur.execute(sql1)
+                conn.commit()
 
-                if q3 is None:
-                    pass
-                else:
-                    print(q3)
-                continue
+            while True:
 
-            elif len(quantity_ingredient_list) == 2:
-                q2 = quantity_ingredient_2(quantity_ingredient_list[0], quantity_ingredient_list[1], name)
-                if q2 is None:
-                    pass
-                else:
-                    print(q2)
-                continue
+                quantity_ingredient = input(
+                    'Input quantity of ingredient <press enter to stop>: ')  # input('Input quantity of ingredient <press enter to stop>: ')    '250 ml milk'
+                quantity_ingredient_list = quantity_ingredient.split(' ')
 
-            elif len(quantity_ingredient_list) == 1:
-                break
+                if len(quantity_ingredient_list) == 3:
+                    q3 = quantity_ingredient_3(quantity_ingredient_list[0], quantity_ingredient_list[1],
+                                               quantity_ingredient_list[2], name)
 
-        continue
+                    if q3 is None:
+                        pass
+                    else:
+                        print(q3)
+                    continue
 
-    elif len(name) == 0:
-        break
+                elif len(quantity_ingredient_list) == 2:
+                    q2 = quantity_ingredient_2(quantity_ingredient_list[0], quantity_ingredient_list[1], name)
+                    if q2 is None:
+                        pass
+                    else:
+                        print(q2)
+                    continue
 
-conn.close()
+                elif len(quantity_ingredient_list) == 1:
+                    break
+
+            continue
+
+        elif len(name) == 0:
+            break
+
+    conn.close()
+
